@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: redpanda-console
+  name: redpanda-console
+  namespace: kafka
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda-console
+  strategy: {}
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: redpanda-console
+    spec:
+      containers:
+      - image: redpandadata/console:latest
+        name: console
+        resources: {}
+        ports:
+        - containerPort: 8080
+        env:
+        - name: KAFKA_BROKERS
+          value: telemetry-kafka-bootstrap:9093
+        - name: KAFKA_TLS_ENABLED
+          value: "true"
+        - name: KAFKA_SASL_ENABLED
+          value: "true"
+        - name: KAFKA_SASL_USERNAME
+          value: admin
+        - name: KAFKA_TLS_INSECURESKIPTLSVERIFY
+          value: "true"
+        - name: KAFKA_SASL_MECHANISM
+          value: SCRAM-SHA-512
+        - name: KAFKA_SASL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: admin
+              key: password
+
+status: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: redpanda-console
+  name: redpanda-console
+  namespace: kafka
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: redpanda-console
+  type: ClusterIP
+status:
+  loadBalancer: {}
+

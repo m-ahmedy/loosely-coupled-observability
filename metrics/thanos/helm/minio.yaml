@@ -1,0 +1,7 @@
+auth:
+  rootUser: minioadmin
+  rootPassword: minioadmin
+defaultBuckets: thanos
+mode: standalone
+persistence:
+  size: 5Gi

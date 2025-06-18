@@ -1,0 +1,48 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: metrics-producer
+  labels:
+    strimzi.io/cluster: telemetry
+  namespace: kafka
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: 'prometheus-metrics'
+          patternType: literal
+        operations: [Write]
+      - resource:
+          type: topic
+          name: 'prometheus-metrics'
+          patternType: literal
+        operations: [Describe]
+
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaUser
+metadata:
+  name: metrics-consumer
+  labels:
+    strimzi.io/cluster: telemetry
+  namespace: kafka
+spec:
+  authentication:
+    type: scram-sha-512
+  authorization:
+    type: simple
+    acls:
+      - resource:
+          type: topic
+          name: 'prometheus-metrics'
+          patternType: literal
+        operations: [Read]
+      - resource:
+          type: group
+          name: '*'
+          patternType: literal
+        operations: [Read]

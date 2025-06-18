@@ -1,0 +1,30 @@
+
+provisionDataStore:
+  cassandra: false
+  elasticsearch: false
+  kafka: false
+
+storage:
+  type: memory
+
+collector:
+  enabled: true
+  service:
+    grpc:
+      enabled: true
+      port: 14250
+
+query:
+  enabled: true
+  service:
+    type: ClusterIP
+    port: 80
+
+agent:
+  enabled: false
+
+ui:
+  enabled: true
+
+allInOne:
+  enabled: false

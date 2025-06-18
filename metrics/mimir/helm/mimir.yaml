@@ -1,0 +1,271 @@
+# Mimir Distributed Production Helm Values
+# This configuration is for a basic production setup with proper resource allocation,
+# persistence, and high availability
+
+global:
+  # Using filesystem storage instead of object storage
+  extraEnv: []
+
+runtimeConfig:
+  overrides:
+    tenant-1:
+      ingestion_rate: 50000
+      ingestion_burst_size: 100000
+
+# Mimir configuration
+mimir:
+  # Enable distributed mode
+  structuredConfig:
+    # Common configuration
+    server:
+      http_listen_port: 8080
+      grpc_listen_port: 9095
+      log_level: info
+    
+    # Memberlist for service discovery
+    memberlist:
+      join_members:
+        - mimir-gossip-ring:7946
+    
+    # Filesystem storage configuration
+    # common:
+    #   storage:
+    #     backend: filesystem
+    #     filesystem:
+    #       dir: /data/mimir
+    
+    # Blocks storage configuration
+    blocks_storage:
+      backend: filesystem
+      filesystem:
+        dir: /blocks/data
+      tsdb:
+        retention_period: 13h  # Allow for 12h blocks plus buffer
+    
+    # Ruler storage for recording rules and alerts
+    ruler_storage:
+      backend: filesystem
+      filesystem:
+        dir: /ruler/data
+    
+    # Alertmanager storage
+    alertmanager_storage:
+      backend: filesystem
+      filesystem:
+        dir: /alertmanager/data
+
+# Component-specific configurations
+# Distributor - receives and forwards metrics
+distributor:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+
+# Ingester - stores recent metrics in memory and writes to storage
+ingester:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  persistentVolume:
+    enabled: true
+    size: 1Gi
+    # storageClass: "fast-ssd"  # Use fast storage for WAL
+  zoneAwareReplication:
+    enabled: false
+
+# Querier - handles PromQL queries
+querier:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  autoscaling:
+    enabled: true
+    minReplicas: 1
+    maxReplicas: 3
+    targetCPUUtilizationPercentage: 70
+
+# Query Frontend - provides query coordination and caching
+query_frontend:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+# Query Scheduler - schedules queries across queriers
+query_scheduler:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Compactor - compacts blocks in filesystem storage
+compactor:
+  replicas: 1  # Should be 1 for data consistency
+  resources:
+    requests:
+      cpu: 1000m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  persistentVolume:
+    enabled: true
+    size: 1Gi  # Increased size for block storage
+    # storageClass: "standard"
+
+# Store Gateway - handles queries for historical data from filesystem
+store_gateway:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  persistentVolume:
+    enabled: true
+    size: 1Gi  # Increased for filesystem storage
+    # storageClass: "standard"
+  zoneAwareReplication:
+    enabled: false
+
+# Ruler - evaluates recording and alerting rules
+ruler:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  persistentVolume:
+    enabled: true
+    size: 1Gi  # Added persistent storage for ruler
+    # storageClass: "standard"
+
+# Alertmanager - handles alerts
+alertmanager:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  persistentVolume:
+    enabled: true
+    size: 1Gi  # Increased for filesystem storage
+    # storageClass: "standard"
+
+# Overrides Exporter - provides per-tenant configuration
+overrides_exporter:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# Gateway - provides a unified HTTP endpoint (replaces nginx)
+gateway:
+  enabled: true
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  service:
+    type: ClusterIP  # Use ClusterIP for internal access only
+    port: 80
+
+# Memcached for caching (optional but recommended for production)
+# memcached:
+#   enabled: true
+  
+# memcached-chunks:
+#   enabled: true
+#   replicaCount: 3
+#   resources:
+#     requests:
+#       cpu: 500m
+#       memory: 1Gi
+#     limits:
+#       cpu: 1000m
+#       memory: 2Gi
+
+# memcached-frontend:
+#   enabled: true
+#   replicaCount: 2
+#   resources:
+#     requests:
+#       cpu: 250m
+#       memory: 512Mi
+#     limits:
+#       cpu: 500m
+#       memory: 1Gi
+
+# memcached-metadata:
+#   enabled: true
+#   replicaCount: 2
+#   resources:
+#     requests:
+#       cpu: 250m
+#       memory: 512Mi
+#     limits:
+#       cpu: 500m
+#       memory: 1Gi
+
+# ServiceMonitor for Prometheus monitoring (if using Prometheus Operator)
+serviceMonitor:
+  enabled: true
+  interval: 30s
+
+# Pod Disruption Budgets for high availability
+# podDisruptionBudget:
+#   enabled: true
+
+# Resource cleanup job
+chunks-cache:
+  enabled: false  # Disable if using external memcached
+
+# Security context
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001

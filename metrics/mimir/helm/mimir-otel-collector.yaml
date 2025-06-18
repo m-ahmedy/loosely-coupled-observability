@@ -1,0 +1,49 @@
+mode: deployment
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+config:
+  receivers:
+    kafka:
+      # protocol_version: 2.0.0
+      brokers: ["telemetry-kafka-bootstrap.kafka.svc.cluster.local:9093"]
+      topic: prometheus-metrics
+      encoding: otlp_json
+      auth:
+        sasl:
+          mechanism: SCRAM-SHA-512
+          username: metrics-consumer
+          password: ${METRICS_CONSUMER_KAFKA_PASSWORD}
+        tls:
+          insecure_skip_verify: true
+
+  exporters:
+    prometheusremotewrite:
+      endpoint: http://mimir-distributor.mimir:8080/api/v1/push
+      headers:
+        X-Scope-OrgID: "tenant-1"
+      # TODO: Secure access
+      tls:
+        insecure_skip_verify: true
+
+  service:
+    pipelines:
+      metrics:
+        receivers: [kafka]
+        exporters: [prometheusremotewrite]
+
+extraEnvs:
+  - name: METRICS_CONSUMER_KAFKA_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: metrics-consumer
+        key: password
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi

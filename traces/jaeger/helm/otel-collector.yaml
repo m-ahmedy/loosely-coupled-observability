@@ -1,0 +1,47 @@
+mode: deployment
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+
+config:
+  receivers:
+    kafka:
+      protocol_version: 2.0.0
+      brokers: ["telemetry-kafka-bootstrap.kafka.svc.cluster.local:9093"]
+      topic: otel-traces
+      encoding: otlp_json
+      auth:
+        sasl:
+          mechanism: SCRAM-SHA-512
+          username: otel-consumer
+          password: ${KAFKA_PASSWORD}
+        tls:
+          insecure_skip_verify: true
+
+  exporters:
+    otlp:
+      endpoint: jaeger-collector.jaeger.svc.cluster.local:14250
+      tls:
+        insecure: true
+
+  service:
+    pipelines:
+      traces:
+        receivers: [kafka]
+        exporters: [otlp]
+
+
+extraEnvs:
+  - name: KAFKA_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: otel-consumer
+        key: password
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 250m
+    memory: 256Mi

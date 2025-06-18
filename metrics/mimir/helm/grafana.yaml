@@ -1,0 +1,13 @@
+adminPassword: "admin"
+
+service:
+  type: ClusterIP
+
+datasources:
+  datasources.yaml:
+    apiVersion: 1
+    datasources:
+      - name: Mimir
+        type: prometheus
+        url: http://mimir-distributor-headless.mimir:8080
+        access: proxy

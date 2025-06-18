@@ -1,0 +1,28 @@
+receive:
+  enabled: true
+  replicaCount: 1
+  tsdbRetention: "2d"
+  remoteWrite:
+    enabled: true
+  existingHashringsSecret: thanos-receive-hashrings
+  service:
+    type: ClusterIP
+existingObjstoreSecret: thanos-objstore
+query:
+  enabled: true
+  replicaCount: 1
+  stores:
+    - thanos-receive.thanos.svc.cluster.local:10901
+    - thanos-bucketweb.thanos.svc.cluster.local:10902
+  service:
+    type: ClusterIP
+storegateway:
+  enabled: false
+compact:
+  enabled: false
+ruler:
+  enabled: false
+bucketweb:
+  enabled: false
+queryFrontend:
+  enabled: false
