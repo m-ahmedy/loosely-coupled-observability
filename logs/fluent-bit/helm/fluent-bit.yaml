@@ -1,0 +1,27 @@
+
+kind: DaemonSet
+
+service:
+  type: ClusterIP
+
+config:
+  inputs: |
+    [INPUT]
+        Name tail
+        Path /var/log/containers/*.log
+        Parser docker
+
+  outputs: |
+    [OUTPUT]
+        Name        opentelemetry
+        Match       *
+        Host        otel-gateway-opentelemetry-collector.otel-gateway.svc.cluster.local
+        Port        4318
+
+  parsers: |
+    [PARSER]
+        Name        docker
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On
