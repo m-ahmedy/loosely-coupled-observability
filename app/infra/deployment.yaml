@@ -5,38 +5,43 @@ metadata:
   name: app
   annotations:
     linkerd.io/inject: enabled
+    instrumentation.opentelemetry.io/inject: "true"
 spec: {}
 status: {}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  creationTimestamp: null
-  labels:
-    app: app
-  name: app
+  name: otel-go-app
   namespace: app
+  labels:
+    app: otel-go-app
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: app
-  strategy: {}
+      app: otel-go-app
   template:
     metadata:
-      creationTimestamp: null
       labels:
-        app: app
+        app: otel-go-app
       annotations:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8080"
         prometheus.io/path: "/metrics"
     spec:
       containers:
-      - image: mahmoud1ahmedy/otel-demo
-        name: otel-demo
-        resources: {}
-status: {}
+        - name: otel-go-app
+          image: mahmoud1ahmedy/otel-go-app:latest
+          env:
+            - name: SERVICE_NAME
+              value: otel-go-app
+            - name: PORT
+              value: "8080"
+            - name: OTEL_GATEWAY_ENDPOINT
+              value: "otel-gateway-opentelemetry-collector.otel-gateway.svc.cluster.local:4317"
+          ports:
+            - containerPort: 8080
 ---
 apiVersion: v1
 kind: Service

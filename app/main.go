@@ -5,23 +5,26 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
-	"github.com/slok/go-http-metrics/metrics/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/slok/go-http-metrics/metrics/prometheus"
 	"github.com/slok/go-http-metrics/middleware"
-	metricsstd "github.com/slok/go-http-metrics/middleware/std"
+	"github.com/slok/go-http-metrics/middleware/std"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
+	
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
 
-func initTracerProvider(ctx context.Context, endpoint string) (*sdktrace.TracerProvider, error) {
+func initTracerProvider(ctx context.Context, serviceName string, endpoint string) (*sdktrace.TracerProvider, error) {
 	conn, err := grpc.NewClient(endpoint, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, err
@@ -34,7 +37,7 @@ func initTracerProvider(ctx context.Context, endpoint string) (*sdktrace.TracerP
 
 	res, _ := resource.New(ctx,
 		resource.WithAttributes(
-			attribute.String("service.name", "go-otel-demo"),
+			attribute.String("service.name", serviceName),
 		),
 	)
 
@@ -47,46 +50,68 @@ func initTracerProvider(ctx context.Context, endpoint string) (*sdktrace.TracerP
 	return tp, nil
 }
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
+func httpHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	tr := otel.Tracer("go-otel-demo")
-	_, span := tr.Start(ctx, "helloHandler")
+	serviceName := os.Getenv("SERVICE_NAME")
+
+	tracer := otel.Tracer(serviceName)
+	_, span := tracer.Start(ctx, "handler-span")
 	defer span.End()
 
-	// requestCounter.Add(ctx, 1)
-
-	fmt.Fprintln(w, "Hello, OpenTelemetry!")
+	log.Printf("INFO: Handling request: %s", r.URL.Path)
+	fmt.Fprintf(w, "Hello from %s!\n", serviceName)
 }
 
 func main() {
 	ctx := context.Background()
 
-	otelEndpoint := "otel-gateway-opentelemetry-collector.otel-gateway.svc.cluster.local:4317"
-
-	// Initialize OpenTelemetry tracer provider
-	tp, err := initTracerProvider(ctx, otelEndpoint)
-	if err != nil {
-		log.Fatalf("failed to initialize tracer: %v", err)
+	serviceName := os.Getenv("SERVICE_NAME")
+	if serviceName == "" {
+		serviceName = "otel-go-app"
+		os.Setenv("SERVICE_NAME", serviceName)
 	}
-	defer func() { _ = tp.Shutdown(ctx) }()
 
-	// Initialize Prometheus recorder
-	recorder := prometheus.NewRecorder(prometheus.Config{})
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+		os.Setenv("PORT", port)
+	}
 
-	// Create metrics middleware
+	endpoint := os.Getenv("OTEL_GATEWAY_ENDPOINT")
+	if endpoint == "" {
+		endpoint = "otel-gateway-opentelemetry-collector.otel-gateway.svc.cluster.local:4317"
+		os.Setenv("OTEL_GATEWAY_ENDPOINT", endpoint)
+	}
+
+	// Init OTEL tracing
+	tp, err := initTracerProvider(ctx, serviceName, endpoint)
+	if err != nil {
+		log.Fatalf("ERROR: Server failed: %v", err)
+		os.Exit(-1)
+	}
+	defer tp.Shutdown(ctx)
+
+	// Prometheus + HTTP metrics (go-http-metrics)
 	metricsMw := middleware.New(middleware.Config{
-		Recorder: recorder,
+		Recorder: prometheus.NewRecorder(prometheus.Config{}),
 	})
 
-	// Wrap the helloHandler with metrics and OpenTelemetry
-	wrappedHelloHandler := metricsstd.Handler("hello", metricsMw, otelhttp.NewHandler(http.HandlerFunc(helloHandler), "hello"))
-
-	// Set up the mux
 	mux := http.NewServeMux()
-	mux.Handle("/hello", wrappedHelloHandler)
+
+	// Metrics handler (Prometheus scrape)
 	mux.Handle("/metrics", promhttp.Handler())
 
-	// Serve
-	log.Println("Listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	// Instrumented app handler
+	otelWrappedHandler := otelhttp.NewHandler(
+		http.HandlerFunc(httpHandler), 
+		"otel-handler",
+	)
+	mwWrappedHandler := std.Handler("root", metricsMw, otelWrappedHandler)
+
+	mux.Handle("/", mwWrappedHandler)
+
+	log.Printf("INFO: Starting server on port %s", port)
+	if err := http.ListenAndServe(":"+port, mux); err != nil {
+		log.Fatalf("ERROR: Server failed: %v", err)
+	}
 }
