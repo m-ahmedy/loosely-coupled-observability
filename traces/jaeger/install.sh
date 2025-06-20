@@ -1,16 +1,19 @@
 #!/bin/bash
 
-kubectl create namespace jaeger
-kubectl annotate ns jaeger linkerd.io/inject=enabled
+port=8083
+namespace=jaeger
+
+kubectl create namespace $namespace
+kubectl annotate ns $namespace linkerd.io/inject=enabled
 
 helm upgrade --install jaeger jaegertracing/jaeger \
-  -n jaeger --create-namespace \
+  -n $namespace \
   -f helm/jaeger.yaml
 
-kubectl wait --for condition=available -n jaeger deployment/jaeger-collector --timeout=10m
+kubectl rollout status deployment -n $namespace jaeger-collector
 
 helm upgrade --install jaeger-gateway open-telemetry/opentelemetry-collector \
   -f helm/otel-collector.yaml \
-  -n jaeger --create-namespace
+  -n $namespace
 
-kubectl wait --for condition=available -n jaeger --timeout=300s deployment/jaeger-gateway-opentelemetry-collector
+kubectl rollout status deployment -n $namespace jaeger-gateway-opentelemetry-collector
