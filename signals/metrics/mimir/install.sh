@@ -14,7 +14,7 @@ do
   kubectl create secret generic $secret -n $namespace --from-literal=password=$password
 done
 
-helm upgrade --install mimir grafana/mimir-distributed -f helm/mimir.yaml --namespace $namespace --create-namespace
+helm upgrade --install mimir grafana/mimir-distributed -f helm/mimir.yaml --namespace $namespace
 
 kubectl rollout status deployment -n $namespace mimir-distributor
 
@@ -26,8 +26,6 @@ kubectl rollout status deployment -n $namespace grafana
 
 helm upgrade --install mimir-gateway open-telemetry/opentelemetry-collector \
   -f helm/mimir-otel-collector.yaml \
-  -n $namespace --create-namespace
+  -n $namespace
 
 kubectl rollout status deployment -n $namespace mimir-gateway-opentelemetry-collector
-
-kubectl port-forward -n mimir svc/grafana 8082:80

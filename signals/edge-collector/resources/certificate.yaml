@@ -1,0 +1,11 @@
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: telemetry-edge-cert
+  namespace: telemetry-edge
+spec:
+  secretName: telemetry-edge-tls-secret
+  issuerRef:
+    name: otel-ca-issuer
+    kind: ClusterIssuer
+  commonName: telemetry-edge-gateway

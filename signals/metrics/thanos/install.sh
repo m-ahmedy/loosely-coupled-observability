@@ -24,5 +24,3 @@ helm upgrade --install thanos-gateway open-telemetry/opentelemetry-collector \
   -n $namespace
 
 kubectl rollout status deployment -n $namespace thanos-gateway-opentelemetry-collector
-
-kubectl port-forward -n thanos svc/grafana 8082:80

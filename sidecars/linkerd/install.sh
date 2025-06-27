@@ -12,4 +12,5 @@ linkerd check --wait=10m0s
 linkerd viz install | kubectl apply -f -
 linkerd viz check
 
-linkerd viz dashboard 
+echo "To view linkerd dashboard"
+echo "    linkerd viz dashboard"

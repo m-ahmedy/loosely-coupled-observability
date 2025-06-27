@@ -8,11 +8,11 @@ kubectl annotate namespace $namespace linkerd.io/inject=enabled
 
 helm repo add kubernetes-dashboard https://kubernetes.github.io/dashboard/ --force-update
 
-helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --namespace $namespace
+helm upgrade --install kubernetes-dashboard kubernetes-dashboard/kubernetes-dashboard --namespace $namespace -f helm/dashboard.yaml
 
-kubectl apply -f admin-user.yaml
-kubectl apply -f crb.yaml
-kubectl apply -f token.yaml
+kubectl apply -f resources/admin-user.yaml
+kubectl apply -f resources/crb.yaml
+kubectl apply -f resources/token.yaml
 
 echo
 echo "Login Token:"
@@ -23,6 +23,6 @@ echo
 
 kubectl rollout status deployment -n kubernetes-dashboard kubernetes-dashboard-kong
 
-kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy $port:443 &
+kubectl -n kubernetes-dashboard port-forward svc/kubernetes-dashboard-kong-proxy $port:443 2>&1 &
 
 open https://localhost:$port

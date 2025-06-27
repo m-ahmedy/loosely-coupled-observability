@@ -15,7 +15,7 @@ config:
     [OUTPUT]
         Name        opentelemetry
         Match       *
-        Host        otel-gateway-opentelemetry-collector.otel-gateway.svc.cluster.local
+        Host        telemetry-edge-opentelemetry-collector.telemetry-edge.svc.cluster.local
         Port        4318
 
   parsers: |

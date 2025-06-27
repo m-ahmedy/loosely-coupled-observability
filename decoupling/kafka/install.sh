@@ -10,15 +10,14 @@ helm upgrade --install strimzi-cluster-operator oci://quay.io/strimzi-helm/strim
 
 kubectl rollout status deployment -n $namespace strimzi-cluster-operator
 
-kubectl apply -f crds/kafka.yaml
+kubectl apply -f resources/kafka.yaml
 kubectl wait -n $namespace --for condition=ready --timeout=10m kafka telemetry
 
-kubectl apply -f crds/topics.yaml
-kubectl apply -f crds/users
+kubectl apply -f resources/topics.yaml
+kubectl apply -f resources/users
 
 kubectl apply -f redpanda.yaml
 kubectl rollout status deployment -n $namespace redpanda-console
 
-kubectl port-forward -n $namespace svc/redpanda-console $port:8080 &
-
-open http://localhost:$port
+echo "To open redpanda console:"
+echo "    kubectl port-forward -n $namespace svc/redpanda-console $port:8080 &"

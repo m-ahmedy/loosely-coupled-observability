@@ -3,21 +3,13 @@ mode: deployment
 image:
   repository: otel/opentelemetry-collector-contrib
 
+fullnameOverride: telemetry-gateway
+
 ports:
   otlp:
     enabled: true
-    containerPort: 4317
-    servicePort: 4317
-    hostPort: 4317
-    protocol: TCP
-    # nodePort: 30317
-    appProtocol: grpc
   otlp-http:
     enabled: true
-    containerPort: 4318
-    servicePort: 4318
-    hostPort: 4318
-    protocol: TCP
   jaeger-compact:
     enabled: false
   jaeger-thrift:
@@ -29,6 +21,26 @@ ports:
   metrics:
     enabled: false
     
+ingress:
+  enabled: true
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/auth-tls-verify-client: "on"
+    nginx.ingress.kubernetes.io/auth-tls-secret: "telemetry-gateway/telemetry-gateway-tls-secret"
+  ingressClassName: nginx
+  hosts:
+    - host: telemetry-gateway.localhost
+      paths:
+        - path: /
+          pathType: Prefix
+          port: 4318
+        - path: /
+          pathType: Prefix
+          port: 4317
+  tls:
+    - secretName: telemetry-gateway-tls-secret
+      hosts:
+        - telemetry-gateway.localhost
 
 
 config:
@@ -41,40 +53,16 @@ config:
       protocols:
         grpc:
           endpoint: 0.0.0.0:4317
+          tls:
+            cert_file: /certs/tls.crt
+            key_file: /certs/tls.key
+            ca_file: /certs/ca.crt
         http:
           endpoint: 0.0.0.0:4318
-    
-    prometheus:
-      config:
-        scrape_configs:
-          - job_name: 'kubernetes-pods'
-            kubernetes_sd_configs:
-              - role: pod
-            relabel_configs:
-              # Only scrape pods with this annotation
-              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-                action: keep
-                regex: true
-
-              # Use the port specified in the annotation `prometheus.io/port`
-              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
-                action: replace
-                target_label: __address__
-                regex: (.+)
-                replacement: $1
-                separator: ':'
-
-              # Use the path specified in the annotation `prometheus.io/path`
-              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
-                action: replace
-                target_label: __metrics_path__
-                regex: (.+)
-                replacement: $1
-
-              # Optional: drop pods that don't have the scrape annotation at all
-              - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
-                action: drop
-                regex: ""
+          tls:
+            cert_file: /certs/tls.crt
+            key_file: /certs/tls.key
+            ca_file: /certs/ca.crt
 
   processors:
     memory_limiter:
@@ -134,7 +122,7 @@ config:
         exporters: [kafka/traces]
 
       metrics:
-        receivers: [prometheus]
+        receivers: [otlp]
         processors: [memory_limiter, batch]
         exporters: [kafka/metrics]
 
@@ -159,6 +147,16 @@ extraEnvs:
       secretKeyRef:
         name: logs-producer
         key: password
+
+extraVolumes:
+  - name: certs
+    secret:
+      secretName: telemetry-gateway-tls-secret
+
+extraVolumeMounts:
+  - name: certs
+    mountPath: /certs
+    readOnly: true
 
 resources:
   limits:
