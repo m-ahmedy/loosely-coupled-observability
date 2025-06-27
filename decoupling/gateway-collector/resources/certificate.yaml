@@ -6,7 +6,7 @@ metadata:
 spec:
   secretName: telemetry-gateway-tls-secret
   issuerRef:
-    name: otel-ca-issuer
+    name: my-org-ca-issuer
     kind: ClusterIssuer
   commonName: telemetry-gateway
   dnsNames:

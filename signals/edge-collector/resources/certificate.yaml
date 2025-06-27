@@ -6,6 +6,6 @@ metadata:
 spec:
   secretName: telemetry-edge-tls-secret
   issuerRef:
-    name: otel-ca-issuer
+    name: my-org-ca-issuer
     kind: ClusterIssuer
   commonName: telemetry-edge-gateway
