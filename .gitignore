@@ -2,3 +2,5 @@
 # TLS Certififcates and Keys
 **/*.crt
 **/*.key
+
+**/*.token

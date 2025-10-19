@@ -1,6 +1,8 @@
 #!/bin/bash
 
 namespace=cert-manager
+version=v1.19.1
+issuer_cn=otel-ca
 
 helm repo add jetstack https://charts.jetstack.io --force-update
 
@@ -10,7 +12,7 @@ kubectl annotate namespace $namespace linkerd.io/inject=enabled
 helm install \
   cert-manager jetstack/cert-manager \
   --namespace $namespace \
-  --version v1.18.0 \
+  --version $version \
   --set crds.enabled=true
 
 kubectl rollout status deployment -n $namespace cert-manager

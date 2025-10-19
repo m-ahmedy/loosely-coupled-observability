@@ -17,8 +17,9 @@ kubectl apply -f resources/token.yaml
 echo
 echo "Login Token:"
 echo
-kubectl get secrets -n kubernetes-dashboard -ojsonpath='{.data.token}' admin-user | base64 -d
-echo
+token=$(kubectl get secrets -n kubernetes-dashboard -ojsonpath='{.data.token}' admin-user | base64 -d)
+echo $token
+echo $token > dashboard.token
 echo
 
 kubectl rollout status deployment -n kubernetes-dashboard kubernetes-dashboard-kong

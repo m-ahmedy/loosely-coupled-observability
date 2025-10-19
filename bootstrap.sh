@@ -43,3 +43,23 @@ echo "Installing telemetry edge collector"
 pushd signals/edge-collector
 ./install.sh
 popd
+
+#### App installation
+echo
+echo "Installing telemetry emitting app"
+pushd app/infra/
+kubectl apply -f deployment.yaml
+popd
+
+#### Install signal consumers
+echo
+echo "Installing fluent-bit logs collection"
+pushd signals/logs/fluent-bit
+./install.sh
+popd
+
+echo
+echo "Installing fluent-bit logs collection"
+pushd signals/logs/elastic-stack
+./install.sh
+popd
